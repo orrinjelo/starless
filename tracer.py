@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage as ndim
 import scipy.misc as spm
+import imageio.v2 as iio
 import random,sys,time,os
 import datetime
 
@@ -313,7 +314,7 @@ def rgbtosrgb(arr):
     arr[mask] **= 1/2.4
     arr[mask] *= 1.055
     arr[mask] -= 0.055
-    arr[-mask] *= 12.92
+    arr[~mask] *= 12.92
 
 
 # convert from srgb to linear rgb
@@ -323,12 +324,12 @@ def srgbtorgb(arr):
     arr[mask] += 0.055
     arr[mask] /= 1.055
     arr[mask] **= 2.4
-    arr[-mask] /= 12.92
+    arr[~mask] /= 12.92
 
 
 logger.debug("Loading textures...")
 if SKY_TEXTURE == 'texture':
-    texarr_sky = spm.imread('textures/bgedit.jpg')
+    texarr_sky = iio.imread('textures/bgedit.jpg')
     # must convert to float here so we can work in linear colour
     texarr_sky = texarr_sky.astype(float)
     texarr_sky /= 255.0
@@ -345,9 +346,9 @@ if SKY_TEXTURE == 'texture':
 
 texarr_disk = None
 if DISK_TEXTURE == 'texture':
-    texarr_disk = spm.imread('textures/adisk.jpg')
+    texarr_disk = iio.imread('textures/adisk.jpg')
 if DISK_TEXTURE == 'test':
-    texarr_disk = spm.imread('textures/adisktest.jpg')
+    texarr_disk = iio.imread('textures/adisktest.jpg')
 if texarr_disk is not None:
     # must convert to float here so we can work in linear colour
     texarr_disk = texarr_disk.astype(float)
