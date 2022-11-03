@@ -11,6 +11,7 @@ import datetime
 import math
 
 import multiprocessing as multi
+from multiprocessing.pool import ThreadPool
 import ctypes
 
 import logging
@@ -108,49 +109,52 @@ def bicubic(img, ratio, a):
     print('Start bicubic interpolation')
     print('It will take a little while...')
     inc = 0
+
+    def interp_step(c, j, i):
+        # Getting the coordinates of the
+        # nearby values
+        x, y = i * h + 2, j * h + 2
+
+        x1 = 1 + x - math.floor(x)
+        x2 = x - math.floor(x)
+        x3 = math.floor(x) + 1 - x
+        x4 = math.floor(x) + 2 - x
+
+        y1 = 1 + y - math.floor(y)
+        y2 = y - math.floor(y)
+        y3 = math.floor(y) + 1 - y
+        y4 = math.floor(y) + 2 - y
+
+        # Considering all nearby 16 values
+        mat_l = np.matrix([[u(x1, a), u(x2, a), u(x3, a), u(x4, a)]])
+        mat_m = np.matrix([[img[int(y-y1), int(x-x1), c],
+                            img[int(y-y2), int(x-x1), c],
+                            img[int(y+y3), int(x-x1), c],
+                            img[int(y+y4), int(x-x1), c]],
+                           [img[int(y-y1), int(x-x2), c],
+                            img[int(y-y2), int(x-x2), c],
+                            img[int(y+y3), int(x-x2), c],
+                            img[int(y+y4), int(x-x2), c]],
+                           [img[int(y-y1), int(x+x3), c],
+                            img[int(y-y2), int(x+x3), c],
+                            img[int(y+y3), int(x+x3), c],
+                            img[int(y+y4), int(x+x3), c]],
+                           [img[int(y-y1), int(x+x4), c],
+                            img[int(y-y2), int(x+x4), c],
+                            img[int(y+y3), int(x+x4), c],
+                            img[int(y+y4), int(x+x4), c]]])
+        mat_r = np.matrix(
+            [[u(y1, a)], [u(y2, a)], [u(y3, a)], [u(y4, a)]])
+          
+        # Here the dot function is used to get the dot 
+        # product of 2 matrices
+        dst[j, i, c] = np.dot(np.dot(mat_l, mat_m), mat_r)
   
     for c in range(C):
         for j in range(dH):
-            for i in range(dW):
-  
-                # Getting the coordinates of the
-                # nearby values
-                x, y = i * h + 2, j * h + 2
-  
-                x1 = 1 + x - math.floor(x)
-                x2 = x - math.floor(x)
-                x3 = math.floor(x) + 1 - x
-                x4 = math.floor(x) + 2 - x
-  
-                y1 = 1 + y - math.floor(y)
-                y2 = y - math.floor(y)
-                y3 = math.floor(y) + 1 - y
-                y4 = math.floor(y) + 2 - y
-  
-                # Considering all nearby 16 values
-                mat_l = np.matrix([[u(x1, a), u(x2, a), u(x3, a), u(x4, a)]])
-                mat_m = np.matrix([[img[int(y-y1), int(x-x1), c],
-                                    img[int(y-y2), int(x-x1), c],
-                                    img[int(y+y3), int(x-x1), c],
-                                    img[int(y+y4), int(x-x1), c]],
-                                   [img[int(y-y1), int(x-x2), c],
-                                    img[int(y-y2), int(x-x2), c],
-                                    img[int(y+y3), int(x-x2), c],
-                                    img[int(y+y4), int(x-x2), c]],
-                                   [img[int(y-y1), int(x+x3), c],
-                                    img[int(y-y2), int(x+x3), c],
-                                    img[int(y+y3), int(x+x3), c],
-                                    img[int(y+y4), int(x+x3), c]],
-                                   [img[int(y-y1), int(x+x4), c],
-                                    img[int(y-y2), int(x+x4), c],
-                                    img[int(y+y3), int(x+x4), c],
-                                    img[int(y+y4), int(x+x4), c]]])
-                mat_r = np.matrix(
-                    [[u(y1, a)], [u(y2, a)], [u(y3, a)], [u(y4, a)]])
-                  
-                # Here the dot function is used to get the dot 
-                # product of 2 matrices
-                dst[j, i, c] = np.dot(np.dot(mat_l, mat_m), mat_r)
+            with ThreadPool(processes=4) as pool:
+                pool.apply_async(lambda ii: interp_step(c, j, ii), range(dW))  
+
   
     # If there is an error message, it
     # directly goes to stderr
